@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}注文完了 | テーブル {{ table_no }} | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<section class="card center-card thanks-card">
+  <div class="table-badge">テーブル {{ table_no }}</div>
+  <div class="app-mark floating-cart">✅</div>
+  <h1>ありがとうございます</h1>
+  <p class="muted">店員がお席までお持ちします。</p>
+
+  <section class="checkout-total-panel">
+    <p class="muted total-caption">現在の合計金額</p>
+    <div class="checkout-total">{{ table_session.total | yen }}</div>
+    <p class="muted checkout-help-text">お会計時はこちらの金額をご確認ください。</p>
+  </section>
+
+  <section class="order-list complete-list">
+    {% for item in table_session['items'] %}
+      <div class="order-row">
+        <span>{{ item.name }} × {{ item.quantity }}点</span>
+        <strong>{{ item.subtotal | yen }}</strong>
+      </div>
+    {% endfor %}
+  </section>
+
+  <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">追加注文する</a>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const tableStateUrl = "{{ url_for('api_table_state', table_no=table_no) }}";
+  const tableHomeUrl = "{{ url_for('table_home', table_no=table_no) }}";
+
+  async function checkTableState() {
+    try {
+      const response = await fetch(tableStateUrl, { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data.active || !data.has_items) {
+        window.location.href = tableHomeUrl;
+      }
+    } catch (error) {
+      // 通信が一時的に失敗しても、画面操作を止めない。
+    }
+  }
+
+  setInterval(checkTableState, 3000);
+</script>
+{% endblock %}

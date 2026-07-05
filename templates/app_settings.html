@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}アプリ設定 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+  <div>
+    <h1>アプリ設定</h1>
+    <p class="muted">注文画面や管理画面に表示する名前・アイコンを変更できます。</p>
+  </div>
+  <a class="button secondary" href="{{ url_for('admin') }}">管理画面に戻る</a>
+</header>
+
+<section class="admin-section">
+  <h2>表示設定</h2>
+
+  <form method="post" action="{{ url_for('app_settings_admin') }}" class="product-admin-form">
+    <div class="form-grid">
+      <label>
+        アプリ表示名
+        <input type="text" name="app_display_name" value="{{ settings.app_display_name }}" maxlength="40" placeholder="例：〇〇祭 テーブル注文">
+      </label>
+
+      <label>
+        画面アイコン
+        <input type="text" name="app_icon" value="{{ settings.app_icon }}" maxlength="8" placeholder="例：🛒、🍜、🍹、🍟">
+      </label>
+    </div>
+
+    <div class="app-preview-card">
+      <p class="muted">表示プレビュー</p>
+      <div class="app-mark">{{ app_config.icon }}</div>
+      <h2>{{ app_config.display_name }}</h2>
+    </div>
+
+    <div class="notice">
+      ここで変更できるアイコンは、画面上に表示する絵文字・文字アイコンです。Windowsのexeアイコンを変える場合は、別途 .ico ファイルとビルド設定が必要です。
+    </div>
+
+    <button class="button primary" type="submit">保存する</button>
+  </form>
+</section>
+{% endblock %}

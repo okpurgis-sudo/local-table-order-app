@@ -1,0 +1,38 @@
+[
+  {
+    "id": 3,
+    "name": "商品C",
+    "unit": "内容を入力してください",
+    "price": 0,
+    "max_quantity": 5,
+    "category": "その他",
+    "sort_order": 30,
+    "recommended": false,
+    "sold_out": false,
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "商品B",
+    "unit": "内容を入力してください",
+    "price": 0,
+    "max_quantity": 5,
+    "category": "ドリンク",
+    "sort_order": 20,
+    "recommended": false,
+    "sold_out": false,
+    "active": false
+  },
+  {
+    "id": 1,
+    "name": "商品A",
+    "unit": "内容を入力してください",
+    "price": 0,
+    "max_quantity": 5,
+    "category": "フード",
+    "sort_order": 10,
+    "recommended": false,
+    "sold_out": false,
+    "active": false
+  }
+]

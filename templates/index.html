@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}テーブル選択 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<section class="card center-card">
+  <div class="app-mark">{{ app_config.icon }}</div>
+  <h1>{{ app_config.display_name }}</h1>
+  <p class="muted">使用するテーブル番号を選んでください。</p>
+
+  <div class="table-select-grid">
+    {% for table_no in range(1, table_count + 1) %}
+      <a class="table-select-button" href="{{ url_for('table_home', table_no=table_no) }}">
+        テーブル {{ table_no }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <a class="button secondary large-button" href="{{ url_for('admin') }}">管理画面を開く</a>
+</section>
+{% endblock %}

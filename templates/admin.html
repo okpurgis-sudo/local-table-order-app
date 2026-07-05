@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}管理画面 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+<section id="admin-entry-overlay" class="admin-entry-overlay {% if not show_admin_entry_overlay %}hidden{% endif %}" data-show-entry="{{ 'true' if show_admin_entry_overlay else 'false' }}">
+  <div class="admin-entry-card">
+    <div class="app-mark">{{ app_config.icon }}</div>
+    <h1>{{ app_config.display_name }}</h1>
+    <p class="muted">通知音を有効にして管理画面に入ります。</p>
+    <button id="enter-admin-button" class="button primary large-button" type="button">
+      管理画面に入る
+    </button>
+    <p class="muted small-note">
+      新しい注文が入ったときに音を鳴らすため、最初にこのボタンを押してください。
+    </p>
+  </div>
+</section>
+
+<header class="admin-header">
+  <div>
+    <h1>管理画面</h1>
+    <p class="muted">注文状況・テーブル状態・商品管理</p>
+  </div>
+
+  <div class="admin-actions">
+    <form method="post" action="{{ url_for('toggle_accepting') }}">
+      {% if settings.accepting_orders %}
+        <button class="button danger-button" type="submit">注文受付を停止する</button>
+      {% else %}
+        <button class="button primary" type="submit">注文受付を開始する</button>
+      {% endif %}
+    </form>
+
+    <a class="button secondary" href="{{ url_for('app_settings_admin') }}">アプリ設定</a>
+
+    {% if settings.accepting_orders %}
+      <button class="button disabled-button" disabled>商品管理は受付停止中のみ</button>
+    {% else %}
+      <a class="button secondary" href="{{ url_for('products_admin') }}">商品管理</a>
+    {% endif %}
+  </div>
+</header>
+
+<section class="notice {% if settings.accepting_orders %}success{% else %}danger{% endif %}">
+  受付状態：{% if settings.accepting_orders %}ON{% else %}OFF{% endif %}
+</section>
+
+<section id="new-order-banner" class="new-order-banner hidden">
+  <span class="banner-icon">{{ app_config.icon }}</span>
+  <strong>新しい注文が入りました！</strong>
+  <span class="banner-icon">🔔</span>
+</section>
+
+<section class="admin-section">
+  <h2>未提供の注文</h2>
+
+  {% if not active_orders %}
+    <p class="muted">現在、未提供の注文はありません。</p>
+  {% else %}
+    <div class="admin-order-list">
+      {% for order in active_orders %}
+        <article class="admin-order-card status-{{ order.status }}">
+          <div class="admin-order-head">
+            <div>
+              <strong class="table-title">テーブル {{ order.table_no }}</strong>
+              <p class="muted">注文 #{{ order.id }} / {{ order.created_at }}</p>
+            </div>
+
+            <span class="status-label">{{ status_labels.get(order.status, order.status) }}</span>
+          </div>
+
+          <div class="order-list compact">
+            {% for item in order['items'] %}
+              <div class="order-row">
+                <span>{{ item.name }} × {{ item.quantity }}点</span>
+                <span>{{ item.subtotal | yen }}</span>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="total-row">
+            <span>合計</span>
+            <strong>{{ order.total | yen }}</strong>
+          </div>
+
+          <div class="button-row">
+            <form method="post" action="{{ url_for('update_order_status', order_id=order.id) }}">
+              <input type="hidden" name="status" value="served">
+              <button class="button primary" type="submit">提供済みにする</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<section class="admin-section">
+  <h2>テーブル状態</h2>
+  <p class="muted">待機中は「このテーブル用タブレットが割り当て済み」の状態です。別端末から同じテーブルは開けません。</p>
+
+  <div class="table-status-grid">
+    {% for table in table_statuses %}
+      <article class="table-status-card {{ table.state_class }}">
+        <div>
+          <strong class="table-status-title">テーブル {{ table.table_no }}</strong>
+          <span class="table-state-label">{{ table.label }}</span>
+        </div>
+
+        {% if table.active %}
+          <p class="table-status-total">合計 {{ table.total | yen }}</p>
+
+          {% if table.unserved_count > 0 %}
+            <p class="muted">未提供 {{ table.unserved_count }}件</p>
+          {% else %}
+            <p class="muted">未提供なし</p>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('mark_table_available', table_no=table.table_no) }}" onsubmit="return confirm('テーブル {{ table.table_no }} を使用可能にしますか？\nこの操作で注文タブレットは初期画面に戻ります。');">
+            {% if table.unserved_count > 0 %}
+              <button class="button disabled-button full" type="button" disabled>未提供あり</button>
+            {% else %}
+              <button class="button primary full" type="submit">使用可能にする</button>
+            {% endif %}
+          </form>
+        {% elif table.locked %}
+          <p class="muted">初期画面で待機中</p>
+          <form method="post" action="{{ url_for('unlock_table', table_no=table.table_no) }}" onsubmit="return confirm('テーブル {{ table.table_no }} の端末ロックを解除しますか？\n通常は押さなくて大丈夫です。');">
+            <button class="button secondary full" type="submit">ロック解除</button>
+          </form>
+        {% else %}
+          <p class="muted">まだ端末に割り当てられていません。</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="admin-section">
+  <h2>提供済み履歴</h2>
+
+  {% if not served_orders %}
+    <p class="muted">提供済み履歴はまだありません。</p>
+  {% else %}
+    <div class="history-list">
+      {% for order in served_orders %}
+        <details class="history-detail">
+          <summary class="history-row history-summary">
+            <span>テーブル {{ order.table_no }} / #{{ order.id }} / {{ order.created_at }}</span>
+            <strong>{{ order.total | yen }}</strong>
+          </summary>
+
+          <div class="history-detail-body">
+            <div class="order-list compact">
+              {% for item in order['items'] %}
+                <div class="order-row">
+                  <span>{{ item.name }} × {{ item.quantity }}点</span>
+                  <span>{{ item.subtotal | yen }}</span>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="total-row">
+              <span>合計</span>
+              <strong>{{ order.total | yen }}</strong>
+            </div>
+          </div>
+        </details>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<section class="admin-section danger-zone">
+  <h2>リセット</h2>
+  <p class="muted">本番前のテスト注文を消すときだけ使ってください。</p>
+  <div class="admin-actions">
+    <form method="post" action="{{ url_for('reset_orders') }}" onsubmit="return confirm('注文履歴を削除しますか？');">
+      <button class="button secondary" type="submit">注文履歴だけ削除</button>
+    </form>
+    <form method="post" action="{{ url_for('reset_tables') }}" onsubmit="return confirm('テーブル状態とカートをリセットしますか？');">
+      <button class="button danger-button" type="submit">テーブル状態をリセット</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

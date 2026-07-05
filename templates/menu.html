@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}商品メニュー | テーブル {{ table_no }} | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<header class="customer-header">
+  <div>
+    <div class="table-badge small">テーブル {{ table_no }}</div>
+    <h1>商品メニュー</h1>
+    <p class="muted">最大注文数は商品ごとに異なります。</p>
+  </div>
+</header>
+
+<section class="menu-hero" aria-hidden="true">
+  <div class="steam steam-one">♪</div>
+  <div class="steam steam-two">★</div>
+  <div class="hero-runner">{{ app_config.icon }}</div>
+  <div class="hero-copy">ご注文の商品をお席までお持ちします</div>
+</section>
+
+{% if not accepting_orders %}
+  <section class="notice danger">現在、注文受付を停止しています。</section>
+{% endif %}
+
+{% if not grouped_products %}
+  <section class="card center-card">
+    <h2>表示中の商品がありません</h2>
+    <p class="muted">管理画面の商品管理で商品を表示してください。</p>
+  </section>
+{% endif %}
+
+{% for category, products in grouped_products.items() %}
+  <section class="category-section">
+    <h2 class="category-title">{{ category }}</h2>
+
+    <div class="menu-grid">
+      {% for product in products %}
+        {% set quantity = product_quantities.get(product.id, 0) %}
+        {% set max_quantity = product.max_quantity %}
+
+        <article class="product-card" data-product-card data-price="{{ product.price }}" data-max-quantity="{{ max_quantity }}">
+          <div class="product-emoji" aria-hidden="true">{{ app_config.icon }}</div>
+
+          <div class="product-info">
+            <div class="product-title-row">
+              <h3>{{ product.name }}</h3>
+              <div class="product-badges">
+                {% if product.recommended %}<span class="mini-badge recommend-badge">おすすめ</span>{% endif %}
+                {% if product.sold_out %}<span class="mini-badge soldout-badge">売り切れ</span>{% endif %}
+              </div>
+            </div>
+
+            <p class="muted unit-line">{{ product.unit }}</p>
+            <p class="price">{{ product.price | yen }}</p>
+
+            <p class="selected-subtotal" data-subtotal-text>
+              {% if quantity > 0 %}
+                選択中：{{ quantity }}点 / {{ (product.price * quantity) | yen }}
+              {% else %}
+                未選択
+              {% endif %}
+            </p>
+
+            {% if product.sold_out %}
+              <p class="soldout-text">この商品は売り切れです</p>
+            {% else %}
+              <p class="muted max-note">最大 {{ max_quantity }}点まで</p>
+            {% endif %}
+          </div>
+
+          <form method="post" action="{{ url_for('change_cart_quantity', table_no=table_no, product_id=product.id) }}" class="quantity-stepper" data-quantity-form>
+            <button class="button secondary qty-button" type="submit" name="delta" value="-1" data-minus-button {% if not accepting_orders or product.sold_out or quantity <= 0 %}disabled{% endif %}>−</button>
+            <div class="menu-quantity" data-quantity-text>{{ quantity }}</div>
+            <button class="button primary qty-button" type="submit" name="delta" value="1" data-plus-button {% if not accepting_orders or product.sold_out or quantity >= max_quantity %}disabled{% endif %}>＋</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endfor %}
+
+<footer class="sticky-footer">
+  <a class="button secondary" href="{{ url_for('table_home', table_no=table_no) }}">戻る</a>
+  <a class="button primary" href="{{ url_for('cart', table_no=table_no) }}" data-cart-link>
+    カートを見る{% if cart_count %}（{{ cart_count }}点 / {{ cart_total | yen }}）{% endif %}
+  </a>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+{% endblock %}

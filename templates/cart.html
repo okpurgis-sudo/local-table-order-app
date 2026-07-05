@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}注文確認 | テーブル {{ table_no }} | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<header class="customer-header">
+  <div>
+    <div class="table-badge small">テーブル {{ table_no }}</div>
+    <h1>注文確認</h1>
+  </div>
+</header>
+
+{% if not items %}
+  <section class="card center-card">
+    <h2>商品が選択されていません</h2>
+    <p class="muted">商品メニューから注文する商品を選んでください。</p>
+    <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">商品メニューへ</a>
+  </section>
+{% else %}
+  <section class="card">
+    <h2>ご注文内容</h2>
+
+    <div class="order-list">
+      {% for item in items %}
+        <div class="order-row">
+          <div>
+            <strong>{{ item.name }} × {{ item.quantity }}点</strong>
+            <p class="muted">{{ item.unit }} / {{ item.price | yen }}</p>
+          </div>
+          <strong>{{ item.subtotal | yen }}</strong>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="total-row big">
+      <span>合計</span>
+      <strong>{{ total | yen }}</strong>
+    </div>
+  </section>
+
+  <footer class="sticky-footer">
+    <a class="button secondary" href="{{ url_for('menu', table_no=table_no) }}">商品・数量を変更する</a>
+    <form method="post" action="{{ url_for('submit_order', table_no=table_no) }}">
+      <button class="button primary" type="submit" {% if not accepting_orders %}disabled{% endif %}>注文する</button>
+    </form>
+  </footer>
+{% endif %}
+{% endblock %}

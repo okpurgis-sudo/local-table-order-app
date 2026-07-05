@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}テーブル {{ table_no }} | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<section class="card center-card start-card">
+  <div class="table-badge">テーブル {{ table_no }}</div>
+  <div class="app-mark floating-cart">{{ app_config.icon }}</div>
+  <h1>いらっしゃいませ</h1>
+  <p class="muted">ご注文はタブレットからお願いいたします。</p>
+
+  <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">
+    注文をはじめる
+  </a>
+</section>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}商品管理 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+  <div>
+    <h1>商品管理</h1>
+    <p class="muted">商品名・価格・最大注文数・売り切れなどを変更できます。</p>
+  </div>
+  <a class="button secondary" href="{{ url_for('admin') }}">管理画面に戻る</a>
+</header>
+
+<section class="notice danger">
+  商品管理は注文受付停止中のみ変更できます。変更後は管理画面で注文受付を開始してください。
+</section>
+
+<section class="admin-section">
+  <h2>現在の商品</h2>
+
+  {% if not products %}
+    <p class="muted">商品が登録されていません。</p>
+  {% endif %}
+
+  <div class="product-admin-list">
+    {% for product in products %}
+      <article class="product-admin-card">
+        <form method="post" action="{{ url_for('update_product', product_id=product.id) }}" class="product-admin-form">
+          <div class="form-grid">
+            <label>商品名<input type="text" name="name" value="{{ product.name }}" required></label>
+            <label>内容・単位・説明<input type="text" name="unit" value="{{ product.unit }}" placeholder="例：1本、1杯、5個、普通サイズ"></label>
+            <label>価格<input type="number" name="price" min="0" value="{{ product.price }}"></label>
+            <label>最大注文数<input type="number" name="max_quantity" min="1" max="99" value="{{ product.max_quantity }}"></label>
+            <label>カテゴリ<input type="text" name="category" value="{{ product.category }}" placeholder="例：フード、ドリンク"></label>
+            <label>並び順<input type="number" name="sort_order" value="{{ product.sort_order }}"></label>
+          </div>
+
+          <div class="check-row">
+            <label class="checkbox-label"><input type="checkbox" name="active" {% if product.active %}checked{% endif %}>注文画面に表示</label>
+            <label class="checkbox-label"><input type="checkbox" name="recommended" {% if product.recommended %}checked{% endif %}>おすすめ表示</label>
+            <label class="checkbox-label"><input type="checkbox" name="sold_out" {% if product.sold_out %}checked{% endif %}>売り切れ</label>
+          </div>
+
+          <div class="button-row">
+            <button class="button primary" type="submit">更新する</button>
+          </div>
+        </form>
+
+        <form method="post" action="{{ url_for('delete_product', product_id=product.id) }}" onsubmit="return confirm('この商品を削除しますか？');">
+          <button class="button danger-button" type="submit">削除</button>
+        </form>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="admin-section">
+  <h2>商品を追加</h2>
+  <article class="product-admin-card">
+    <form method="post" action="{{ url_for('add_product') }}" class="product-admin-form">
+      <div class="form-grid">
+        <label>商品名<input type="text" name="name" placeholder="例：焼きそば、ジュース、からあげ" required></label>
+        <label>内容・単位・説明<input type="text" name="unit" placeholder="例：1本、1杯、5個、普通サイズ"></label>
+        <label>価格<input type="number" name="price" min="0" value="0"></label>
+        <label>最大注文数<input type="number" name="max_quantity" min="1" max="99" value="5"></label>
+        <label>カテゴリ<input type="text" name="category" placeholder="例：フード、ドリンク"></label>
+        <label>並び順<input type="number" name="sort_order" value="999"></label>
+      </div>
+
+      <div class="check-row">
+        <label class="checkbox-label"><input type="checkbox" name="active" checked>注文画面に表示</label>
+        <label class="checkbox-label"><input type="checkbox" name="recommended">おすすめ表示</label>
+        <label class="checkbox-label"><input type="checkbox" name="sold_out">売り切れ</label>
+      </div>
+
+      <button class="button primary" type="submit">商品を追加する</button>
+    </form>
+  </article>
+</section>
+{% endblock %}

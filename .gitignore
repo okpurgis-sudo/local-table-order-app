@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+build/
+dist/
+*.spec
+installer/
+*.exe
+*.msi
+
+# Runtime data
+data/orders.json
+data/table_sessions.json
+data/carts.json
+data/settings.json
+
+.DS_Store
+Thumbs.db

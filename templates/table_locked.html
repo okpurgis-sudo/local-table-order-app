@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}テーブル使用中 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<section class="card center-card locked-card">
+  <div class="table-badge">テーブル {{ table_no }}</div>
+  <div class="app-mark">🔒</div>
+  <h1>このテーブルは使用中です</h1>
+  <p class="muted">すでに別の端末でこのテーブルが使用されています。</p>
+  <p class="muted">テーブル番号を確認するか、店員にお知らせください。</p>
+  <a class="button secondary large-button" href="{{ url_for('home') }}">テーブル選択に戻る</a>
+</section>
+{% endblock %}

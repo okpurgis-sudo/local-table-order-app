@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}エラー | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}customer-body{% endblock %}
+
+{% block content %}
+<section class="card center-card locked-card">
+  <div class="app-mark">⚠️</div>
+  <h1>エラー</h1>
+  <p class="muted">{{ message }}</p>
+  <a class="button secondary large-button" href="{{ url_for('home') }}">トップに戻る</a>
+</section>
+{% endblock %}
