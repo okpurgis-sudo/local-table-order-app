@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}テーブル設定 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+  <div>
+    <h1>テーブル設定</h1>
+    <p class="muted">使用するテーブル数を追加・削除できます。</p>
+  </div>
+  <a class="button secondary" href="{{ url_for('admin', skip_entry=1) }}">管理画面に戻る</a>
+</header>
+
+{% if message %}
+  <section class="notice {{ message_type }}">{{ message }}</section>
+{% endif %}
+
+<section class="notice danger">
+  テーブル設定は注文受付停止中のみ変更できます。営業中の誤操作を防ぐため、受付中はこの画面を開けません。
+</section>
+
+<section class="admin-section">
+  <h2>現在のテーブル数</h2>
+
+  <div class="table-count-panel">
+    <div>
+      <p class="muted">現在使用できるテーブル番号</p>
+      <strong class="table-count-number">1 〜 {{ table_count }}</strong>
+    </div>
+
+    <form method="post" action="{{ url_for('add_table') }}">
+      <button class="button primary" type="submit">テーブルを1つ追加する</button>
+    </form>
+  </div>
+
+  <div class="notice">
+    テーブルを追加すると、新しい番号のテーブルURLが使えるようになります。例：現在12テーブルなら、追加後に <strong>/table/13</strong> が使えます。
+  </div>
+</section>
+
+<section class="admin-section danger-zone">
+  <h2>最後のテーブルを削除</h2>
+
+  <p class="muted">
+    欠番を避けるため、削除できるのは最後のテーブルだけです。現在は <strong>テーブル {{ table_count }}</strong> が削除対象です。
+  </p>
+
+  {% if can_delete_last %}
+    <form method="post" action="{{ url_for('delete_last_table') }}" onsubmit="return confirm('テーブル {{ table_count }} を削除しますか？\nこの操作で使用できる最大テーブル番号が {{ table_count - 1 }} になります。');">
+      <button class="button danger-button" type="submit">テーブル {{ table_count }} を削除する</button>
+    </form>
+  {% else %}
+    <button class="button disabled-button" type="button" disabled>テーブル {{ table_count }} は削除できません</button>
+    <p class="muted">理由：{{ delete_reason }}</p>
+  {% endif %}
+
+  <div class="notice danger">
+    使用中、待機中、未提供注文あり、カート残りありのテーブルは削除できません。必要な場合は、提供済み処理・使用可能にする・ロック解除を行ってから削除してください。
+  </div>
+</section>
+
+<section class="admin-section">
+  <h2>テーブル状態確認</h2>
+
+  <div class="table-status-grid">
+    {% for table in table_statuses %}
+      <article class="table-status-card {{ table.state_class }}">
+        <div>
+          <strong class="table-status-title">テーブル {{ table.table_no }}</strong>
+          <span class="table-state-label">{{ table.label }}</span>
+        </div>
+
+        {% if table.active %}
+          <p class="table-status-total">合計 {{ table.total | yen }}</p>
+        {% elif table.locked %}
+          <p class="muted">初期画面で待機中</p>
+        {% else %}
+          <p class="muted">未割当</p>
+        {% endif %}
+
+        {% if table.unserved_count > 0 %}
+          <p class="muted">未提供 {{ table.unserved_count }}件</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -5,7 +5,7 @@ import threading
 import time
 import webbrowser
 
-from app import PORT, TABLE_COUNT, app, ensure_data_files, get_app_config
+from app import PORT, app, ensure_data_files, get_app_config, get_table_count
 
 HOST = "0.0.0.0"
 
@@ -41,7 +41,7 @@ def print_startup_info() -> None:
     print(f"  http://127.0.0.1:{PORT}/admin")
     print("")
     print("タブレット用URL:")
-    for table_no in range(1, TABLE_COUNT + 1):
+    for table_no in range(1, get_table_count() + 1):
         print(f"  テーブル {table_no}: http://{local_ip}:{PORT}/table/{table_no}")
     print("")
     print("終了するときは、この黒い画面を閉じてください。")

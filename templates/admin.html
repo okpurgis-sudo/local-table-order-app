@@ -36,8 +36,10 @@
 
     {% if settings.accepting_orders %}
       <button class="button disabled-button" disabled>アプリ設定は受付停止中のみ</button>
+      <button class="button disabled-button" disabled>テーブル設定は受付停止中のみ</button>
     {% else %}
       <a class="button secondary" href="{{ url_for('app_settings_admin') }}">アプリ設定</a>
+      <a class="button secondary" href="{{ url_for('table_settings_admin') }}">テーブル設定</a>
     {% endif %}
 
     {% if settings.accepting_orders %}
@@ -63,6 +65,12 @@
 {% if request.args.get('settings_blocked') == '1' %}
   <section class="notice danger">
     アプリ設定は注文受付停止中のみ変更できます。先に「注文受付を停止する」を押してください。
+  </section>
+{% endif %}
+
+{% if request.args.get('tables_blocked') == '1' %}
+  <section class="notice danger">
+    テーブル設定は注文受付停止中のみ変更できます。先に「注文受付を停止する」を押してください。
   </section>
 {% endif %}
 

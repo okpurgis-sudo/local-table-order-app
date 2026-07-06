@@ -16,13 +16,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 APP_NAME = "Local Table Order App"
-TABLE_COUNT = 12
+DEFAULT_TABLE_COUNT = 12
 PORT = 5000
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "accepting_orders": True,
     "app_display_name": "Local Table Order App",
     "app_icon": "🛒",
+    "table_count": DEFAULT_TABLE_COUNT,
     # 初期管理パスワードは admin です。
     # ローカル運用前提の簡易認証ですが、公開・配布前に必ず変更してください。
     "admin_password_hash": generate_password_hash("admin"),
@@ -177,7 +178,7 @@ def safe_int(value: Any, default: int = 0, minimum: int | None = None, maximum: 
 
 
 def validate_table_no(table_no: int) -> bool:
-    return 1 <= table_no <= TABLE_COUNT
+    return 1 <= table_no <= get_table_count()
 
 
 def get_settings() -> dict[str, Any]:
@@ -185,6 +186,16 @@ def get_settings() -> dict[str, Any]:
     merged = deepcopy(DEFAULT_SETTINGS)
     merged.update(settings)
     return merged
+
+
+def get_table_count() -> int:
+    """
+    現在使用するテーブル数を返す。
+
+    以前は TABLE_COUNT で固定していたが、管理画面から増減できるように
+    settings.json の table_count を参照する。
+    """
+    return safe_int(get_settings().get("table_count"), DEFAULT_TABLE_COUNT, minimum=1, maximum=99)
 
 
 def save_settings(settings: dict[str, Any]) -> None:
@@ -499,7 +510,7 @@ def table_unserved_count(table_no: int) -> int:
 def build_table_statuses() -> list[dict[str, Any]]:
     statuses: list[dict[str, Any]] = []
 
-    for table_no in range(1, TABLE_COUNT + 1):
+    for table_no in range(1, get_table_count() + 1):
         table_session = get_table_session(table_no)
         unserved_count = table_unserved_count(table_no)
 
@@ -534,7 +545,7 @@ def build_table_statuses() -> list[dict[str, Any]]:
 
 @app.route("/")
 def home():
-    return render_template("index.html", table_count=TABLE_COUNT)
+    return render_template("index.html", table_count=get_table_count())
 
 
 @app.route("/table/<int:table_no>")
@@ -992,6 +1003,136 @@ def api_active_order_count():
     active_count = sum(1 for order in orders if order.get("status") != "served")
     latest_id = max([safe_int(order.get("id"), 0) for order in orders], default=0)
     return jsonify({"active_count": active_count, "latest_id": latest_id})
+
+
+# -----------------------------
+# Table settings admin
+# -----------------------------
+
+def table_can_be_deleted(table_no: int) -> tuple[bool, str]:
+    """
+    テーブル削除可否を返す。
+
+    現在の仕様では、テーブル番号の欠番を避けるため、
+    削除できるのは最後のテーブルだけにしている。
+    注文中・待機中・カート残り・未提供ありの場合は削除しない。
+    """
+    table_session = get_table_session(table_no)
+    cart = get_cart(table_no)
+
+    if table_has_unserved_orders(table_no):
+        return False, "未提供の注文が残っているため削除できません。"
+
+    if table_session.get("active"):
+        return False, "使用中のテーブルは削除できません。"
+
+    if table_session.get("locked"):
+        return False, "端末に割り当て済みのテーブルは削除できません。先にロック解除してください。"
+
+    if table_session.get("items"):
+        return False, "注文表示が残っているテーブルは削除できません。"
+
+    if any(safe_int(quantity, 0) > 0 for quantity in cart.values()):
+        return False, "カート内容が残っているテーブルは削除できません。"
+
+    return True, ""
+
+
+def table_settings_message_from_query() -> tuple[str, str]:
+    message = ""
+    message_type = "success"
+
+    if request.args.get("added") == "1":
+        message = "テーブルを1つ追加しました。"
+    elif request.args.get("deleted") == "1":
+        message = "最後のテーブルを削除しました。"
+    elif request.args.get("error") == "accepting":
+        message = "テーブル設定は注文受付停止中のみ変更できます。"
+        message_type = "danger"
+    elif request.args.get("error") == "minimum":
+        message = "テーブルは最低1つ必要です。"
+        message_type = "danger"
+    elif request.args.get("error") == "maximum":
+        message = "テーブル数の上限は99です。"
+        message_type = "danger"
+    elif request.args.get("error") == "delete":
+        message = request.args.get("reason", "このテーブルは削除できません。")
+        message_type = "danger"
+
+    return message, message_type
+
+
+@app.route("/admin/tables")
+@admin_required
+def table_settings_admin():
+    settings = get_settings()
+
+    if settings.get("accepting_orders"):
+        return redirect(url_for("admin", skip_entry="1", tables_blocked="1"))
+
+    table_count = get_table_count()
+    last_table_no = table_count
+    can_delete_last, delete_reason = table_can_be_deleted(last_table_no)
+    message, message_type = table_settings_message_from_query()
+
+    return render_template(
+        "table_settings.html",
+        table_count=table_count,
+        table_statuses=build_table_statuses(),
+        can_delete_last=can_delete_last,
+        delete_reason=delete_reason,
+        message=message,
+        message_type=message_type,
+    )
+
+
+@app.post("/admin/tables/add")
+@admin_required
+def add_table():
+    settings = get_settings()
+
+    if settings.get("accepting_orders"):
+        return redirect(url_for("table_settings_admin", error="accepting"))
+
+    current_count = get_table_count()
+    if current_count >= 99:
+        return redirect(url_for("table_settings_admin", error="maximum"))
+
+    settings["table_count"] = current_count + 1
+    save_settings(settings)
+
+    return redirect(url_for("table_settings_admin", added="1"))
+
+
+@app.post("/admin/tables/delete-last")
+@admin_required
+def delete_last_table():
+    settings = get_settings()
+
+    if settings.get("accepting_orders"):
+        return redirect(url_for("table_settings_admin", error="accepting"))
+
+    current_count = get_table_count()
+    if current_count <= 1:
+        return redirect(url_for("table_settings_admin", error="minimum"))
+
+    can_delete, reason = table_can_be_deleted(current_count)
+    if not can_delete:
+        return redirect(url_for("table_settings_admin", error="delete", reason=reason))
+
+    settings["table_count"] = current_count - 1
+    save_settings(settings)
+
+    with DATA_LOCK:
+        sessions = load_json(TABLE_SESSIONS_FILE, {})
+        sessions.pop(str(current_count), None)
+        save_json(TABLE_SESSIONS_FILE, sessions)
+
+        carts = get_all_carts()
+        carts.pop(str(current_count), None)
+        save_json(CARTS_FILE, carts)
+
+    return redirect(url_for("table_settings_admin", deleted="1"))
 
 
 # -----------------------------
