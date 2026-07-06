@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}管理画面ログイン | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+<section class="card center-card login-card">
+  <div class="app-mark">{{ app_config.icon }}</div>
+  <h1>管理画面ログイン</h1>
+  <p class="muted">管理画面を開くにはパスワードを入力してください。</p>
+
+  {% if info_message %}
+    <section class="notice success">{{ info_message }}</section>
+  {% endif %}
+
+  {% if error_message %}
+    <section class="notice danger">{{ error_message }}</section>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('admin_login') }}" class="login-form">
+    <input type="hidden" name="next" value="{{ next_url }}">
+
+    <label>
+      管理パスワード
+      <input type="password" name="password" autocomplete="current-password" autofocus required>
+    </label>
+
+    <button class="button primary large-button" type="submit">管理画面に入る</button>
+  </form>
+
+  <p class="muted small-note">初期パスワードは admin です。利用前にアプリ設定から変更してください。</p>
+
+  {% if can_reset_password %}
+    <div class="login-reset-link">
+      <a href="{{ url_for('admin_password_reset') }}">パスワードを忘れた場合（管理PCのみ）</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

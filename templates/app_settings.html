@@ -6,15 +6,21 @@
 <header class="admin-header">
   <div>
     <h1>アプリ設定</h1>
-    <p class="muted">注文画面や管理画面に表示する名前・アイコンを変更できます。</p>
+    <p class="muted">表示名・画面アイコン・管理画面パスワードを変更できます。</p>
   </div>
-  <a class="button secondary" href="{{ url_for('admin') }}">管理画面に戻る</a>
+  <a class="button secondary" href="{{ url_for('admin', skip_entry=1) }}">管理画面に戻る</a>
 </header>
+
+{% if message %}
+  <section class="notice {{ message_type }}">{{ message }}</section>
+{% endif %}
 
 <section class="admin-section">
   <h2>表示設定</h2>
 
   <form method="post" action="{{ url_for('app_settings_admin') }}" class="product-admin-form">
+    <input type="hidden" name="action" value="display">
+
     <div class="form-grid">
       <label>
         アプリ表示名
@@ -38,6 +44,39 @@
     </div>
 
     <button class="button primary" type="submit">保存する</button>
+  </form>
+</section>
+
+<section class="admin-section">
+  <h2>管理画面パスワード</h2>
+  <p class="muted">管理画面に入るためのパスワードを変更できます。初期パスワードは <strong>admin</strong> です。</p>
+
+  <form method="post" action="{{ url_for('app_settings_admin') }}" class="product-admin-form">
+    <input type="hidden" name="action" value="password">
+
+    <div class="form-grid">
+      <label>
+        現在のパスワード
+        <input type="password" name="current_password" autocomplete="current-password" required>
+      </label>
+
+      <label>
+        新しいパスワード
+        <input type="password" name="new_password" minlength="4" autocomplete="new-password" required>
+      </label>
+
+      <label>
+        新しいパスワード（確認）
+        <input type="password" name="confirm_password" minlength="4" autocomplete="new-password" required>
+      </label>
+    </div>
+
+    <div class="notice">
+      ローカル運用向けの簡易パスワードです。配布・本番利用前には必ず初期パスワードから変更してください。
+      パスワードを忘れた場合は、管理PCで <strong>/admin/password-reset</strong> を開くと初期値 admin に戻せます。
+    </div>
+
+    <button class="button primary" type="submit">パスワードを変更する</button>
   </form>
 </section>
 {% endblock %}

@@ -1,15 +1,15 @@
 [
   {
-    "id": 3,
-    "name": "商品C",
+    "id": 1,
+    "name": "商品A",
     "unit": "内容を入力してください",
     "price": 0,
     "max_quantity": 5,
-    "category": "その他",
-    "sort_order": 30,
+    "category": "フード",
+    "sort_order": 10,
     "recommended": false,
     "sold_out": false,
-    "active": true
+    "active": false
   },
   {
     "id": 2,
@@ -24,13 +24,13 @@
     "active": false
   },
   {
-    "id": 1,
-    "name": "商品A",
+    "id": 3,
+    "name": "商品C",
     "unit": "内容を入力してください",
     "price": 0,
     "max_quantity": 5,
-    "category": "フード",
-    "sort_order": 10,
+    "category": "その他",
+    "sort_order": 30,
     "recommended": false,
     "sold_out": false,
     "active": false

@@ -9,8 +9,17 @@
   <h1>いらっしゃいませ</h1>
   <p class="muted">ご注文はタブレットからお願いいたします。</p>
 
-  <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">
-    注文をはじめる
-  </a>
+  {% if accepting_orders %}
+    <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">
+      注文をはじめる
+    </a>
+  {% else %}
+    <section class="notice danger start-notice">
+      現在、注文受付を停止しています。店員にお声がけください。
+    </section>
+    <button class="button disabled-button large-button" type="button" disabled>
+      注文受付停止中
+    </button>
+  {% endif %}
 </section>
 {% endblock %}

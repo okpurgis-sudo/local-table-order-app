@@ -7,7 +7,7 @@
   <div class="admin-entry-card">
     <div class="app-mark">{{ app_config.icon }}</div>
     <h1>{{ app_config.display_name }}</h1>
-    <p class="muted">通知音を有効にして管理画面に入ります。</p>
+    <p class="muted">管理画面に入ります。新規注文の通知音もここで有効になります。</p>
     <button id="enter-admin-button" class="button primary large-button" type="button">
       管理画面に入る
     </button>
@@ -32,19 +32,39 @@
       {% endif %}
     </form>
 
-    <a class="button secondary" href="{{ url_for('app_settings_admin') }}">アプリ設定</a>
+    <a class="button secondary" href="{{ url_for('admin_orders') }}">注文履歴</a>
+
+    {% if settings.accepting_orders %}
+      <button class="button disabled-button" disabled>アプリ設定は受付停止中のみ</button>
+    {% else %}
+      <a class="button secondary" href="{{ url_for('app_settings_admin') }}">アプリ設定</a>
+    {% endif %}
 
     {% if settings.accepting_orders %}
       <button class="button disabled-button" disabled>商品管理は受付停止中のみ</button>
     {% else %}
       <a class="button secondary" href="{{ url_for('products_admin') }}">商品管理</a>
     {% endif %}
+
+        <form method="post" action="{{ url_for('admin_logout') }}">
+      <button class="button secondary" type="submit">ログアウト</button>
+    </form>
+    
   </div>
 </header>
 
 <section class="notice {% if settings.accepting_orders %}success{% else %}danger{% endif %}">
   受付状態：{% if settings.accepting_orders %}ON{% else %}OFF{% endif %}
+  {% if settings.accepting_orders %}
+    <br>アプリ設定・商品管理などの設定変更は、注文受付を停止してから行ってください。
+  {% endif %}
 </section>
+
+{% if request.args.get('settings_blocked') == '1' %}
+  <section class="notice danger">
+    アプリ設定は注文受付停止中のみ変更できます。先に「注文受付を停止する」を押してください。
+  </section>
+{% endif %}
 
 <section id="new-order-banner" class="new-order-banner hidden">
   <span class="banner-icon">{{ app_config.icon }}</span>
@@ -172,18 +192,7 @@
   {% endif %}
 </section>
 
-<section class="admin-section danger-zone">
-  <h2>リセット</h2>
-  <p class="muted">本番前のテスト注文を消すときだけ使ってください。</p>
-  <div class="admin-actions">
-    <form method="post" action="{{ url_for('reset_orders') }}" onsubmit="return confirm('注文履歴を削除しますか？');">
-      <button class="button secondary" type="submit">注文履歴だけ削除</button>
-    </form>
-    <form method="post" action="{{ url_for('reset_tables') }}" onsubmit="return confirm('テーブル状態とカートをリセットしますか？');">
-      <button class="button danger-button" type="submit">テーブル状態をリセット</button>
-    </form>
-  </div>
-</section>
+
 {% endblock %}
 
 {% block scripts %}

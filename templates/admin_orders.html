@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}注文履歴 | {{ app_config.display_name }}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+  <div>
+    <h1>注文履歴</h1>
+    <p class="muted">未提供・提供済みを含むすべての注文を確認できます。</p>
+  </div>
+
+  <div class="admin-actions">
+    <a class="button secondary" href="{{ url_for('admin', skip_entry=1) }}">管理画面に戻る</a>
+  </div>
+</header>
+
+{% if delete_message %}
+  <section class="notice {{ delete_message_type }}">{{ delete_message }}</section>
+{% endif %}
+
+<section class="admin-section">
+  <h2>絞り込み</h2>
+  <form method="get" action="{{ url_for('admin_orders') }}" class="history-filter-form">
+    <div class="form-grid">
+      <label>
+        状態
+        <select name="status">
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>すべて</option>
+          {% for status, label in status_labels.items() %}
+            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        テーブル番号
+        <input type="number" name="table" min="1" value="{{ table_filter }}" placeholder="例：1">
+      </label>
+    </div>
+
+    <div class="button-row">
+      <button class="button primary" type="submit">絞り込む</button>
+      <a class="button secondary" href="{{ url_for('admin_orders') }}">条件をクリア</a>
+    </div>
+  </form>
+</section>
+
+<section class="admin-section">
+  <h2>履歴一覧</h2>
+
+  {% if not orders %}
+    <p class="muted">条件に合う注文履歴はありません。</p>
+  {% else %}
+    <div class="history-list">
+      {% for order in orders %}
+        <details class="history-detail">
+          <summary class="history-row history-summary">
+            <span>
+              テーブル {{ order.table_no }} / #{{ order.id }} / {{ order.created_at }}
+              <span class="status-label mini-status">{{ status_labels.get(order.status, order.status) }}</span>
+            </span>
+            <strong>{{ order.total | yen }}</strong>
+          </summary>
+
+          <div class="history-detail-body">
+            <div class="order-list compact">
+              {% for item in order['items'] %}
+                <div class="order-row">
+                  <span>{{ item.name }} × {{ item.quantity }}点</span>
+                  <span>{{ item.subtotal | yen }}</span>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="total-row">
+              <span>合計</span>
+              <strong>{{ order.total | yen }}</strong>
+            </div>
+          </div>
+        </details>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<section class="admin-section danger-zone">
+  <h2>履歴削除</h2>
+  <p class="muted">
+    提供済みの注文履歴だけを削除します。未提供の注文は削除されません。
+  </p>
+
+  {% if accepting_orders %}
+    <section class="notice danger">
+      注文受付中は履歴を削除できません。履歴削除を行う場合は、管理画面で注文受付を停止してください。
+    </section>
+    <button class="button disabled-button" type="button" disabled>
+      受付停止中のみ削除できます
+    </button>
+  {% else %}
+    <section class="notice danger">
+      この操作は元に戻せません。実行する場合は、確認欄に <strong>削除する</strong> と入力してください。
+    </section>
+
+    <form
+      method="post"
+      action="{{ url_for('delete_served_orders') }}"
+      class="danger-confirm-form"
+      onsubmit="return confirm('提供済みの注文履歴を削除しますか？');"
+    >
+      <label>
+        確認入力
+        <input
+          type="text"
+          name="confirm_text"
+          autocomplete="off"
+          placeholder="削除する と入力"
+          required
+        >
+      </label>
+
+      <button class="button danger-button" type="submit">
+        提供済み履歴を削除する
+      </button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

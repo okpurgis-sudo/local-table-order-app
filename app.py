@@ -9,7 +9,10 @@ from threading import Lock
 from typing import Any
 from uuid import uuid4
 
+from functools import wraps
+
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 APP_NAME = "Local Table Order App"
@@ -20,6 +23,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "accepting_orders": True,
     "app_display_name": "Local Table Order App",
     "app_icon": "🛒",
+    # 初期管理パスワードは admin です。
+    # ローカル運用前提の簡易認証ですが、公開・配布前に必ず変更してください。
+    "admin_password_hash": generate_password_hash("admin"),
 }
 
 DEFAULT_PRODUCTS: list[dict[str, Any]] = [
@@ -544,7 +550,7 @@ def table_home(table_no: int):
     if table_session.get("active") and table_session.get("items"):
         return redirect(url_for("complete", table_no=table_no))
 
-    return render_template("table_start.html", table_no=table_no)
+    return render_template("table_start.html", table_no=table_no, accepting_orders=get_settings()["accepting_orders"])
 
 
 @app.route("/table/<int:table_no>/menu")
@@ -719,7 +725,12 @@ def complete(table_no: int):
     if not table_session.get("active") or not table_session.get("items"):
         return redirect(url_for("table_home", table_no=table_no))
 
-    return render_template("complete.html", table_no=table_no, table_session=table_session)
+    return render_template(
+        "complete.html",
+        table_no=table_no,
+        table_session=table_session,
+        accepting_orders=get_settings()["accepting_orders"],
+    )
 
 
 @app.get("/api/table/<int:table_no>/state")
@@ -739,6 +750,124 @@ def api_table_state(table_no: int):
     )
 
 
+
+# -----------------------------
+# Admin authentication
+# -----------------------------
+
+def is_admin_logged_in() -> bool:
+    return bool(session.get("admin_logged_in"))
+
+
+def check_admin_password(password: str) -> bool:
+    settings = get_settings()
+    password_hash = settings.get("admin_password_hash")
+
+    if not password_hash:
+        return password == "admin"
+
+    return check_password_hash(str(password_hash), password)
+
+
+def is_local_admin_request() -> bool:
+    """
+    管理PCからのアクセスかどうかを判定する。
+
+    パスワードリセットは危険な操作なので、
+    サーバーPC自身で開いた localhost / 127.0.0.1 の画面からだけ許可する。
+    タブレットなど別端末からのアクセスでは使えない。
+    """
+    remote_addr = request.remote_addr or ""
+    host_name = (request.host or "").split(":", 1)[0].strip("[]")
+
+    local_addresses = {"127.0.0.1", "::1", "localhost"}
+    return remote_addr in local_addresses or host_name in local_addresses
+
+
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        if is_admin_logged_in():
+            return view_func(*args, **kwargs)
+
+        if request.path.startswith("/api/admin"):
+            return jsonify({"ok": False, "message": "管理画面にログインしてください。"}), 401
+
+        return redirect(url_for("admin_login", next=request.full_path))
+
+    return wrapper
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error_message = ""
+    info_message = ""
+
+    if request.args.get("reset") == "done":
+        info_message = "管理画面パスワードを初期値 admin に戻しました。ログイン後、必要に応じてアプリ設定から変更してください。"
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        next_url = request.form.get("next", "") or url_for("admin", enter="1")
+
+        if check_admin_password(password):
+            session["admin_logged_in"] = True
+            session.modified = True
+
+            if next_url.startswith("/") and not next_url.startswith("//"):
+                return redirect(next_url)
+            return redirect(url_for("admin", enter="1"))
+
+        error_message = "パスワードが違います。"
+
+    return render_template(
+        "admin_login.html",
+        error_message=error_message,
+        info_message=info_message,
+        next_url=request.args.get("next", url_for("admin", enter="1")),
+        can_reset_password=is_local_admin_request(),
+    )
+
+
+@app.route("/admin/password-reset", methods=["GET", "POST"])
+def admin_password_reset():
+    """
+    管理PC専用のパスワードリセット画面。
+
+    リセット実行時は、誤操作防止のため確認欄に RESET と入力してもらう。
+    """
+    if not is_local_admin_request():
+        return render_template(
+            "error.html",
+            message="パスワードリセットは管理PCからのみ実行できます。",
+        ), 403
+
+    error_message = ""
+
+    if request.method == "POST":
+        confirm_text = request.form.get("confirm_text", "").strip()
+
+        if confirm_text != "RESET":
+            error_message = "確認欄に RESET と入力してください。"
+            return render_template("admin_password_reset.html", error_message=error_message), 400
+
+        settings = get_settings()
+        settings["admin_password_hash"] = generate_password_hash("admin")
+        save_settings(settings)
+
+        session.pop("admin_logged_in", None)
+        session.modified = True
+        return redirect(url_for("admin_login", reset="done"))
+
+    return render_template("admin_password_reset.html", error_message=error_message)
+
+
+@app.post("/admin/logout")
+def admin_logout():
+    session.pop("admin_logged_in", None)
+    session.modified = True
+    return redirect(url_for("admin_login"))
+
 # -----------------------------
 # Admin routes
 # -----------------------------
@@ -750,6 +879,7 @@ STATUS_LABELS = {
 
 
 @app.route("/admin")
+@admin_required
 def admin():
     orders = load_json(ORDERS_FILE, [])
     normalized_orders = sorted(
@@ -775,6 +905,7 @@ def admin():
 
 
 @app.post("/admin/toggle-accepting")
+@admin_required
 def toggle_accepting():
     settings = get_settings()
     was_accepting = bool(settings.get("accepting_orders"))
@@ -790,6 +921,7 @@ def toggle_accepting():
 
 
 @app.post("/admin/order/<int:order_id>/status")
+@admin_required
 def update_order_status(order_id: int):
     next_status = request.form.get("status", "served")
     if next_status not in STATUS_LABELS:
@@ -809,6 +941,7 @@ def update_order_status(order_id: int):
 
 
 @app.post("/admin/table/<int:table_no>/available")
+@admin_required
 def mark_table_available(table_no: int):
     if not validate_table_no(table_no):
         return redirect(url_for("admin", skip_entry="1"))
@@ -834,6 +967,7 @@ def mark_table_available(table_no: int):
 
 
 @app.post("/admin/table/<int:table_no>/unlock")
+@admin_required
 def unlock_table(table_no: int):
     if not validate_table_no(table_no):
         return redirect(url_for("admin", skip_entry="1"))
@@ -852,6 +986,7 @@ def unlock_table(table_no: int):
 
 
 @app.get("/api/admin/active-order-count")
+@admin_required
 def api_active_order_count():
     orders = load_json(ORDERS_FILE, [])
     active_count = sum(1 for order in orders if order.get("status") != "served")
@@ -864,16 +999,136 @@ def api_active_order_count():
 # -----------------------------
 
 @app.route("/admin/app-settings", methods=["GET", "POST"])
+@admin_required
 def app_settings_admin():
     settings = get_settings()
 
-    if request.method == "POST":
-        settings["app_display_name"] = request.form.get("app_display_name", "").strip() or "Local Table Order App"
-        settings["app_icon"] = request.form.get("app_icon", "").strip() or "🛒"
-        save_settings(settings)
-        return redirect(url_for("app_settings_admin"))
+    # 表示名・アイコン・管理パスワードなどの設定変更は、
+    # 営業中の誤操作を防ぐため注文受付停止中だけ許可する。
+    if settings.get("accepting_orders"):
+        return redirect(url_for("admin", skip_entry="1", settings_blocked="1"))
 
-    return render_template("app_settings.html", settings=settings)
+    message = ""
+    message_type = "success"
+
+    if request.method == "POST":
+        action = request.form.get("action", "display")
+
+        if action == "display":
+            settings["app_display_name"] = request.form.get("app_display_name", "").strip() or "Local Table Order App"
+            settings["app_icon"] = request.form.get("app_icon", "").strip() or "🛒"
+            save_settings(settings)
+            return redirect(url_for("app_settings_admin", saved="1"))
+
+        if action == "password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if not check_admin_password(current_password):
+                return redirect(url_for("app_settings_admin", password="wrong"))
+
+            if len(new_password) < 4:
+                return redirect(url_for("app_settings_admin", password="short"))
+
+            if new_password != confirm_password:
+                return redirect(url_for("app_settings_admin", password="mismatch"))
+
+            settings["admin_password_hash"] = generate_password_hash(new_password)
+            save_settings(settings)
+            return redirect(url_for("app_settings_admin", password="changed"))
+
+    if request.args.get("saved") == "1":
+        message = "表示設定を保存しました。"
+    elif request.args.get("password") == "changed":
+        message = "管理画面パスワードを変更しました。"
+    elif request.args.get("password") == "wrong":
+        message = "現在のパスワードが違います。"
+        message_type = "danger"
+    elif request.args.get("password") == "short":
+        message = "新しいパスワードは4文字以上にしてください。"
+        message_type = "danger"
+    elif request.args.get("password") == "mismatch":
+        message = "新しいパスワードと確認用パスワードが一致しません。"
+        message_type = "danger"
+
+    return render_template(
+        "app_settings.html",
+        settings=settings,
+        message=message,
+        message_type=message_type,
+    )
+
+
+@app.route("/admin/orders")
+@admin_required
+def admin_orders():
+    orders = load_json(ORDERS_FILE, [])
+    normalized_orders = sorted(
+        orders,
+        key=lambda order: (str(order.get("created_at", "")), safe_int(order.get("id"), 0)),
+        reverse=True,
+    )
+
+    status_filter = request.args.get("status", "all")
+    table_filter = request.args.get("table", "").strip()
+
+    filtered_orders = normalized_orders
+
+    if status_filter in STATUS_LABELS:
+        filtered_orders = [order for order in filtered_orders if order.get("status") == status_filter]
+
+    if table_filter:
+        table_no = safe_int(table_filter, 0)
+        if table_no > 0:
+            filtered_orders = [order for order in filtered_orders if safe_int(order.get("table_no"), 0) == table_no]
+
+    delete_message = ""
+    delete_message_type = "success"
+
+    if request.args.get("deleted") == "served":
+        delete_message = "提供済みの注文履歴を削除しました。"
+    elif request.args.get("delete_error") == "confirm":
+        delete_message = "履歴を削除するには、確認欄に 削除する と入力してください。"
+        delete_message_type = "danger"
+    elif request.args.get("delete_error") == "accepting":
+        delete_message = "注文受付中は履歴を削除できません。注文受付を停止してから実行してください。"
+        delete_message_type = "danger"
+
+    return render_template(
+        "admin_orders.html",
+        orders=filtered_orders,
+        status_labels=STATUS_LABELS,
+        status_filter=status_filter,
+        table_filter=table_filter,
+        delete_message=delete_message,
+        delete_message_type=delete_message_type,
+        accepting_orders=get_settings()["accepting_orders"],
+    )
+
+
+@app.post("/admin/orders/delete-served")
+@admin_required
+def delete_served_orders():
+    """
+    提供済みの注文履歴だけを削除する。
+
+    未提供の注文まで消すと、配膳管理が壊れる可能性があるため削除しない。
+    誤操作防止のため、確認欄に「削除する」と入力された場合だけ実行する。
+    """
+    if get_settings().get("accepting_orders"):
+        return redirect(url_for("admin_orders", delete_error="accepting"))
+
+    confirm_text = request.form.get("confirm_text", "").strip()
+
+    if confirm_text != "削除する":
+        return redirect(url_for("admin_orders", delete_error="confirm"))
+
+    orders = load_json(ORDERS_FILE, [])
+    remaining_orders = [order for order in orders if order.get("status") != "served"]
+    save_json(ORDERS_FILE, remaining_orders)
+
+    return redirect(url_for("admin_orders", deleted="served"))
 
 
 # -----------------------------
@@ -881,6 +1136,7 @@ def app_settings_admin():
 # -----------------------------
 
 @app.route("/admin/products")
+@admin_required
 def products_admin():
     if get_settings().get("accepting_orders"):
         return redirect(url_for("admin", skip_entry="1"))
@@ -889,6 +1145,7 @@ def products_admin():
 
 
 @app.post("/admin/products/<int:product_id>/update")
+@admin_required
 def update_product(product_id: int):
     if get_settings().get("accepting_orders"):
         return redirect(url_for("admin", skip_entry="1"))
@@ -913,6 +1170,7 @@ def update_product(product_id: int):
 
 
 @app.post("/admin/products/add")
+@admin_required
 def add_product():
     if get_settings().get("accepting_orders"):
         return redirect(url_for("admin", skip_entry="1"))
@@ -936,6 +1194,7 @@ def add_product():
 
 
 @app.post("/admin/products/<int:product_id>/delete")
+@admin_required
 def delete_product(product_id: int):
     if get_settings().get("accepting_orders"):
         return redirect(url_for("admin", skip_entry="1"))
@@ -943,23 +1202,6 @@ def delete_product(product_id: int):
     products = [product for product in get_products(include_inactive=True) if safe_int(product.get("id"), 0) != product_id]
     save_products(products)
     return redirect(url_for("products_admin"))
-
-
-# -----------------------------
-# Reset helpers
-# -----------------------------
-
-@app.post("/admin/reset/orders")
-def reset_orders():
-    save_json(ORDERS_FILE, [])
-    return redirect(url_for("admin", skip_entry="1"))
-
-
-@app.post("/admin/reset/tables")
-def reset_tables():
-    save_json(TABLE_SESSIONS_FILE, {})
-    save_json(CARTS_FILE, {})
-    return redirect(url_for("admin", skip_entry="1"))
 
 
 if __name__ == "__main__":

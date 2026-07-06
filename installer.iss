@@ -1,9 +1,9 @@
 [Setup]
-AppName=Local Table Order App
+AppName=テーブル注文アプリ
 AppVersion=1.0.0
-AppPublisher=Local Table Order App
+AppPublisher=テーブル注文アプリ
 DefaultDirName={localappdata}\Programs\LocalTableOrderApp
-DefaultGroupName=Local Table Order App
+DefaultGroupName=テーブル注文アプリ
 OutputDir=installer
 OutputBaseFilename=LocalTableOrderApp_Setup
 Compression=lzma
@@ -18,12 +18,12 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 Source: "dist\LocalTableOrderApp\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\Local Table Order App"; Filename: "{app}\LocalTableOrderApp.exe"
-Name: "{autodesktop}\Local Table Order App"; Filename: "{app}\LocalTableOrderApp.exe"; Tasks: desktopicon
-Name: "{autoprograms}\Local Table Order App フォルダを開く"; Filename: "{app}"
+Name: "{autoprograms}\テーブル注文アプリ"; Filename: "{app}\LocalTableOrderApp.exe"
+Name: "{autodesktop}\テーブル注文アプリ"; Filename: "{app}\LocalTableOrderApp.exe"; Tasks: desktopicon
+Name: "{autoprograms}\テーブル注文アプリ フォルダを開く"; Filename: "{app}"
 
 [Tasks]
 Name: "desktopicon"; Description: "デスクトップにショートカットを作成する"; GroupDescription: "追加オプション:"; Flags: unchecked
 
 [Run]
-Filename: "{app}\LocalTableOrderApp.exe"; Description: "Local Table Order App を起動する"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\LocalTableOrderApp.exe"; Description: "テーブル注文アプリ を起動する"; Flags: nowait postinstall skipifsilent

@@ -24,7 +24,16 @@
     {% endfor %}
   </section>
 
-  <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">追加注文する</a>
+  {% if accepting_orders %}
+    <a class="button primary large-button" href="{{ url_for('menu', table_no=table_no) }}">追加注文する</a>
+  {% else %}
+    <section class="notice danger complete-notice">
+      現在、注文受付を停止しています。追加注文はできません。
+    </section>
+    <button class="button disabled-button large-button" type="button" disabled>
+      追加注文停止中
+    </button>
+  {% endif %}
 </section>
 {% endblock %}
 
