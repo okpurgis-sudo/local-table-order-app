@@ -1282,8 +1282,22 @@ def products_admin():
     if get_settings().get("accepting_orders"):
         return redirect(url_for("admin", skip_entry="1"))
 
-    return render_template("products.html", products=get_products(include_inactive=True))
+    message = ""
+    message_type = "success"
 
+    if request.args.get("saved") == "1":
+        message = "変更を保存しました。"
+    elif request.args.get("added") == "1":
+        message = "商品を追加しました。"
+    elif request.args.get("deleted") == "1":
+        message = "商品を削除しました。"
+
+    return render_template(
+        "products.html",
+        products=get_products(include_inactive=True),
+        message=message,
+        message_type=message_type,
+    )
 
 @app.post("/admin/products/<int:product_id>/update")
 @admin_required
@@ -1307,7 +1321,7 @@ def update_product(product_id: int):
             break
 
     save_products(products)
-    return redirect(url_for("products_admin"))
+    return redirect(url_for("products_admin", saved="1"))
 
 
 @app.post("/admin/products/add")
@@ -1331,7 +1345,7 @@ def add_product():
     }
     products.append(new_product)
     save_products(products)
-    return redirect(url_for("products_admin"))
+    return redirect(url_for("products_admin", added="1"))
 
 
 @app.post("/admin/products/<int:product_id>/delete")
@@ -1342,7 +1356,7 @@ def delete_product(product_id: int):
 
     products = [product for product in get_products(include_inactive=True) if safe_int(product.get("id"), 0) != product_id]
     save_products(products)
-    return redirect(url_for("products_admin"))
+    return redirect(url_for("products_admin", deleted="1"))
 
 
 if __name__ == "__main__":

@@ -11,9 +11,9 @@
   <a class="button secondary" href="{{ url_for('admin') }}">管理画面に戻る</a>
 </header>
 
-<section class="notice danger">
-  商品管理は注文受付停止中のみ変更できます。変更後は管理画面で注文受付を開始してください。
-</section>
+{% if message %}
+  <section class="notice {{ message_type }}">{{ message }}</section>
+{% endif %}
 
 <section class="admin-section">
   <h2>現在の商品</h2>
